@@ -37,6 +37,10 @@ ggplot(season22_23, aes(x = club, y = revenue)) +
 ggplot(season22_23) +
   geom_bar(aes(x = club, y = revenue, fill = "Omsætning"), stat = "identity") +
   geom_bar(aes(x = club, y = wage, fill = "Løn"), stat = "identity") +
+  geom_text(aes(x = club, y = revenue, label = scales::comma(revenue/1000, accuracy = 1), group = "revenue"), 
+            position = position_dodge(width = 0.8), vjust = -0.5, size = 2) +  # Værdi for Revenue
+  geom_text(aes(x = club, y = wage, label = scales::comma(wage/1000, accuracy = 1), group = "wage"),
+            position = position_dodge(width = 0.8), vjust = -1, size = 2) +
   labs(title = "Premier League klubbers omsætning og løn i 2022/2023",
        y = "£1.000", 
        x = "") +

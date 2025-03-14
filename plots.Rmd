@@ -1,0 +1,52 @@
+---
+title: "plots"
+output: html_document
+date: "2025-03-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Premier League klubbers løn og omsætning 2022/2023
+```{r}
+library(ggplot2)
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(scales)
+data <- read_excel("data.xlsx", range = "A1:G261", na = "N/A")
+
+
+season22_23 <-data %>%
+  filter(season == "22_23") %>%
+  na.omit() %>%
+  select(season, club, revenue, wage)
+
+andre_klubber <- data_frame(season = c("22_23", "22_23", "22_23", "22_23", "22_23"), club = c("Brighton", "Brentford", "Bournemouth", "Nottingham Forest", "Leeds"), revenue = c(203574, 166508, 140983, 154758, 189684), wage = c(109446, 86152, 87832, 129718, 129398))
+
+season22_23 <- rbind(season22_23, andre_klubber)
+
+ggplot(season22_23, aes(x = club, y = revenue)) + 
+  geom_bar(stat = "identity") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Premier League klubbers omsætning og løn i 2022/2023",
+       y = "£1.000")
+
+ggplot(season22_23) +
+  geom_bar(aes(x = club, y = revenue, fill = "Omsætning"), stat = "identity") +
+  geom_bar(aes(x = club, y = wage, fill = "Løn"), stat = "identity") +
+  labs(title = "Premier League klubbers omsætning og løn i 2022/2023",
+       y = "£1.000", 
+       x = "") +
+  scale_fill_manual(values = c("Omsætning" = "darkblue", "Løn" = "darkgreen"), name = "") +
+  scale_y_continuous(labels = comma) +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = c(0.15,0.85),
+        legend.key.size = unit(0.4, "cm"),
+        legend.text = element_text(size = 8))
+
+```
+

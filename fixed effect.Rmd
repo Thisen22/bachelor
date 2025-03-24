@@ -9,4 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-bla bla bla
+## Data
+```{r}
+library(readxl)
+library(dplyr)
+data <- read_excel("data.xlsx", range = "A1:G261")
+
+df <- data %>%
+  group_by(season) %>%
+  mutate(relative_revenue = revenue / mean(revenue)) %>%
+  mutate(relative_wage = wage / mean(wage)) %>%
+  ungroup()
+
+```
+

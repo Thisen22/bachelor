@@ -1,0 +1,12 @@
+---
+title: "fixed effect"
+author: "Jonathan Arve Thomsen"
+date: "2025-03-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+bla bla bla

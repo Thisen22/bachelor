@@ -72,4 +72,61 @@ ggplot(df, aes(x = relative_revenue, y = relative_point)) +
 
 ```
 
+#F test for fixed effects
+```{r}
+library(plm)
+
+df$club <- as.factor(df$club)  # Klubnavn som faktor
+df$season <- as.character(df$season)  # Sæson som karakter, hvis den ikke er numerisk
+
+data <- pdata.frame(df, index = c("club", "season"))
+
+# OLS-model (uden fixed effects)
+ols_model <- plm(points ~ relative_revenue + relative_wage, data = data, model = "pooling")
+
+# Fixed effects-model
+fe_model <- plm(points ~ relative_revenue + relative_wage, data = data, model = "within")
+
+# F-test for fixed effects
+pFtest(fe_model, ols_model)
+
+```
+
+#Hausman test
+```{r}
+# Random Effects-model
+re_model <- plm(points ~ relative_revenue + relative_wage, data = data, model = "random")
+
+# Hausman-test for at sammenligne Fixed Effects vs Random Effects
+phtest(fe_model, re_model)
+
+```
+#Random effects model
+```{r}
+re_model <- plm(points ~ relative_revenue + relative_wage, data = data, model = "random")
+summary(re_model)
+
+coeftest(re_model, vcov = vcovHC(re_model, type = "HC1"))
+
+```
+
+#F test for fixed effects uden de klubber der har været der mindre end 7 sæsoner
+```{r}
+#Filtrering af data
+data_filtered <- subset(df, !club %in% c("Birmingham", "Blackburn", "Blackpool", "Bolton", "Bournemouth", "Brentford", "Brighton", "Cardiff", "Huddersfield", "Hull", "Leeds", "Middlesbrough", "Norwich", "Nottingham", "QPR", "Reading", "Sheffield United", "Watford", "Wigan"))
+
+# Lav pdata.frame
+data_filtered <- pdata.frame(data_filtered, index = c("club", "season"))
+
+# OLS-model (uden fixed effects)
+ols_model <- plm(relative_point ~ relative_revenue + relative_wage, data = data_filtered, model = "pooling")
+
+# Fixed effects-model
+fe_model <- plm(relative_point ~ relative_revenue + relative_wage, data = data_filtered, model = "within")
+
+# F-test for fixed effects
+pFtest(fe_model, ols_model)
+
+```
+
 

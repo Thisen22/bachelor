@@ -13,13 +13,63 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(readxl)
 library(dplyr)
+library(ggplot2)
 data <- read_excel("data.xlsx", range = "A1:G261")
 
+#laver relative revenue og lønninger
 df <- data %>%
   group_by(season) %>%
   mutate(relative_revenue = revenue / mean(revenue)) %>%
+  mutate(revenue_Zscore = (revenue - mean(revenue)) / sd(revenue)) %>%
   mutate(relative_wage = wage / mean(wage)) %>%
+  mutate(wage_Zscore = (wage - mean(wage)) / sd(wage)) %>%
   ungroup()
 
+#laver SRS og relativ point
+df <- df %>%
+  group_by(season) %>%
+  mutate(relative_point = points / mean(points)) %>%
+  mutate(point_Zscore = (points - mean(points)) / sd(points)) %>%
+  mutate(ppg = points / 38) %>% 
+  mutate(ppg_Zscore = (points - mean(points)) / sd(points)) %>%
+  ungroup() %>%
+  mutate('w%r' = wage / revenue)
 ```
+
+## Plot med relative wage og point
+```{r}
+model1 <- lm(relative_point ~ relative_wage, data = df)
+r_squared1 <- summary(model1)$r.squared
+
+ggplot(df, aes(x = relative_wage, y = relative_point)) +
+  geom_point(color = "#007fa3") +
+  geom_smooth(method = "lm", se = FALSE, color = "#211A52") +
+  theme_minimal() +
+    labs(title = "Relative lønninger og relative point",
+       y = "Relativ point", 
+       x = "Relativ løn",
+       caption = "Kilde: Egne beregninger") + 
+  annotate("text", x = max(df$relative_wage) * 0.88, y = max(df$relative_point) * 0.95,
+           label = paste("R² = ", round(r_squared1, 2)), color = "#211A52", size = 3.7)
+
+```
+
+## Plot med relative omsætning og point
+```{r}
+model2 <- lm(relative_point ~ relative_revenue, data = df)
+r_squared2 <- summary(model2)$r.squared
+
+ggplot(df, aes(x = relative_revenue, y = relative_point)) +
+  geom_point(color = "#007fa3") +
+  geom_smooth(method = "lm", se = FALSE, color = "#211A52") +
+  theme_minimal() +
+    labs(title = "Relative omsætning og relative point",
+       y = "Relativ point", 
+       x = "Relativ omsætning",
+       caption = "Kilde: Egne beregninger") +
+  annotate("text", x = max(df$relative_wage) * 0.88, y = max(df$relative_point) * 0.96,
+           label = paste("R² = ", round(r_squared2, 2)), color = "#211A52", size = 3.7)
+
+```
+
 

@@ -104,14 +104,6 @@ re_model <- plm(points ~ relative_revenue + relative_wage, data = data, model = 
 phtest(fe_model, re_model)
 
 ```
-#Random effects model
-```{r}
-re_model <- plm(points ~ relative_revenue + relative_wage, data = data, model = "random")
-summary(re_model)
-
-coeftest(re_model, vcov = vcovHC(re_model, type = "HC1"))
-
-```
 
 #F test for fixed effects uden de klubber der har været der mindre end 7 sæsoner
 ```{r}

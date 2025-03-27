@@ -142,6 +142,7 @@ ols_model1 <- plm(points ~  relative_wage, data = data_filtered, model = "poolin
 # Fixed effects-model
 fe_model1 <- plm(points ~  relative_wage, data = data_filtered, model = "within")
 
+
 # F-test for fixed effects
 pFtest(fe_model1, ols_model1)
 ```
@@ -154,7 +155,8 @@ ols_model2 <- plm(point_Zscore ~  revenue_Zscore + wage_Zscore + transfer_Zscore
 
 
 # Fixed effects-model
-fe_model2 <- plm(point_Zscore ~  revenue_Zscore + wage_Zscore + transfer_Zscore, data = data_filtered, model = "within")
+fe_model2 <- plm(point_Zscore ~  wage_Zscore + revenue_Zscore + transfer_Zscore, data = data_filtered, model = "within")
+summary(fe_model2)
 
 # F-test for fixed effects
 pFtest(fe_model2, ols_model2)
@@ -166,5 +168,50 @@ re_model2 <- plm(point_Zscore ~ revenue_Zscore + wage_Zscore + transfer_Zscore, 
 
 # Hausman-test for at sammenligne Fixed Effects vs Random Effects
 phtest(fe_model2, re_model2)
+
+
+```
+
+
+## Correlations tabel
+```{r}
+cor_with_p <- function(x) {
+  n <- ncol(x)
+  corr_mat <- matrix(NA, n, n)
+  p_mat <- matrix(NA, n, n)
+  colnames(corr_mat) <- rownames(corr_mat) <- colnames(x)
+  colnames(p_mat) <- rownames(p_mat) <- colnames(x)
+  
+  for (i in 1:n) {
+    for (j in 1:n) {
+      test <- cor.test(x[[i]], x[[j]], use = "pairwise.complete.obs")
+      corr_mat[i, j] <- test$estimate
+      p_mat[i, j] <- test$p.value
+    }
+  }
+  
+  list(correlation = corr_mat, p_value = p_mat)
+}
+
+vars <- data[, c("wage", "revenue", "transfers..ind.ud.", "points")]
+result <- cor_with_p(vars)
+
+# Add significance stars
+star_matrix <- function(corr, p) {
+  stars <- ifelse(p < 0.001, "***",
+            ifelse(p < 0.01, "**",
+            ifelse(p < 0.05, "*",
+            ifelse(p < 0.1, ".", " "))))
+  rounded_corr <- round(corr, 2)
+  paste0(rounded_corr, stars)
+}
+
+# Apply and print
+corr_table <- matrix(star_matrix(result$correlation, result$p_value),
+                     nrow = ncol(vars), ncol = ncol(vars),
+                     dimnames = list(colnames(vars), colnames(vars)))
+print(corr_table, quote = FALSE)
+
+
 ```
 

@@ -1,0 +1,91 @@
+---
+title: "Goal! replikation"
+output: html_document
+date: "2025-03-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Dataformatering
+```{r}
+library(readxl)
+library(dplyr)
+data <- read_excel("data.xlsx", range = "A1:G261")
+
+#Formatering af lavet ud fra den i GOAL!
+df <- data %>%
+  group_by(season) %>%
+  mutate(log_revenue = log(revenue / mean(revenue))) %>% 
+  mutate(log_wage = log(wage / mean(wage))) %>%
+  mutate(log_point = log(points / (114+1-points))) %>% # i stedet for placering anvendes point, der plusses med 1 for at undgå division med 0 (selvom ingen klubber har fået 114 eller 0 point i PL nogensinde, men sikrer sig mod, hvis det skulle ske og kode/metode skal genanvendes til det)
+  mutate(log_rank = log((20+1-placering) / placering)) %>% # GOAL!'s variable for præstation
+  ungroup()
+
+# Tæller antal sæsoner pr- klub
+valid_clubs <- df %>%
+  group_by(club) %>%
+  summarise(n_seasons = n()) %>%
+  filter(n_seasons >= 7) %>% #minimum 7 sæsoner
+  pull(club)
+
+# Filtrer datasættet
+data_filtered <- df %>%
+  filter(club %in% valid_clubs)
+```
+
+## Revenue regression
+### For alle holdene i datasættet:
+```{r}
+library(plm)
+
+pdata <- pdata.frame(df, index = c("club", "season")) # Lav paneldataframe
+
+plm_model <- plm(
+  log_revenue ~ log_point + lag(log_revenue, 1),
+  data = pdata,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+summary(plm_model)
+```
+
+### Filtreret datasæt
+```{r}
+# Lav pdata.frame
+data_filtered <- pdata.frame(data_filtered, index = c("club", "season"))
+
+plm_model_filtered <- plm(
+  log_revenue ~ log_point + lag(log_revenue, 1),
+  data = data_filtered,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+summary(plm_model_filtered)
+
+```
+
+## Performance regression
+### For alle holdene i datasættet:
+```{r}
+perform_model <- plm(
+  log_point ~ log_wage + lag(log_point, 1),
+  data = pdata,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+summary(perform_model)
+```
+
+### Filtreret datasæt
+```{r}
+perform_model_filtered <- plm(
+  log_point ~ log_wage + lag(log_point, 1),
+  data = data_filtered,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+summary(perform_model_filtered)
+```
+

@@ -60,7 +60,7 @@ print(hausman_test)
 ols_model <- plm(log_point ~ log_wage + lag(log_point, 1), data = data_filtered, model = "pooling")
 
 
-# F-test for fixed effects
+# FE eller OLS?
 pFtest(fe_model_points, ols_model)
 ```
 
@@ -104,14 +104,14 @@ plm_model_filtered <- plm(
 )
 
 summary(plm_model_filtered)
-
+fixef(plm_model_filtered)
 ```
 
 ## Performance regression
 ### For alle holdene i datasættet:
 ```{r}
 perform_model <- plm(
-  log_rank ~ log_wage + lag(log_rank, 1),
+  log_rank ~ log_wage,
   data = pdata,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
@@ -122,12 +122,17 @@ summary(perform_model)
 ### Filtreret datasæt
 ```{r}
 perform_model_filtered <- plm(
-  log_point ~ log_wage + lag(log_point, 1),
+  log_point ~ log_wage,
   data = data_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
 summary(perform_model_filtered)
 fixef(perform_model_filtered)
+
+
+model <- lm(log_point ~ log_wage + factor(club), data = data_filtered)
+summary(model)
 ```
+
 

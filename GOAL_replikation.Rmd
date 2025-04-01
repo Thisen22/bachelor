@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readxl)
 library(dplyr)
 library(plm)
+library(lmtest)
 data <- read_excel("data.xlsx", range = "A1:G261")
 
 #Formatering af lavet ud fra den i GOAL!
@@ -55,6 +56,12 @@ re_model_points <- plm(log_point ~ log_wage + lag(log_point, 1), data = data_fil
 
 hausman_test <- phtest(fe_model_points, re_model_points)
 print(hausman_test)
+
+ols_model <- plm(log_point ~ log_wage + lag(log_point, 1), data = data_filtered, model = "pooling")
+
+
+# F-test for fixed effects
+pFtest(fe_model_points, ols_model)
 ```
 
 ### Revenue
@@ -104,7 +111,7 @@ summary(plm_model_filtered)
 ### For alle holdene i datasættet:
 ```{r}
 perform_model <- plm(
-  log_point ~ log_wage + lag(log_point, 1),
+  log_rank ~ log_wage + lag(log_rank, 1),
   data = pdata,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
@@ -121,5 +128,6 @@ perform_model_filtered <- plm(
 )
 
 summary(perform_model_filtered)
+fixef(perform_model_filtered)
 ```
 

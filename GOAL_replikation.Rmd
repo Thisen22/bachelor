@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(readxl)
 library(dplyr)
+library(plm)
 data <- read_excel("data.xlsx", range = "A1:G261")
 
 #Formatering af lavet ud fra den i GOAL!
@@ -33,15 +34,50 @@ valid_clubs <- df %>%
 # Filtrer datasættet
 data_filtered <- df %>%
   filter(club %in% valid_clubs)
+
+# Lav paneldataframe
+pdata <- pdata.frame(df, index = c("club", "season")) 
+
+# Lav pdata.frame for filtreret data
+data_filtered <- pdata.frame(data_filtered, index = c("club", "season"))
+
 ```
+
+## Test af RE eller FE
+### Point
+```{r}
+fe_model_points <- plm(log_point ~ log_wage + lag(log_point, 1), data = data_filtered,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+re_model_points <- plm(log_point ~ log_wage + lag(log_point, 1), data = data_filtered,
+  model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+hausman_test <- phtest(fe_model_points, re_model_points)
+print(hausman_test)
+```
+
+### Revenue
+```{r}
+fe_model_revenue <- plm(
+  log_revenue ~ log_point + lag(log_revenue, 1),
+  data = data_filtered,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+re_model_revenue <- plm(
+  log_revenue ~ log_point + lag(log_revenue, 1),
+  data = data_filtered,
+  model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+hausman_test_revenue <- phtest(fe_model_revenue, re_model_revenue)
+print(hausman_test_revenue)
+```
+
 
 ## Revenue regression
 ### For alle holdene i datasættet:
 ```{r}
-library(plm)
-
-pdata <- pdata.frame(df, index = c("club", "season")) # Lav paneldataframe
-
 plm_model <- plm(
   log_revenue ~ log_point + lag(log_revenue, 1),
   data = pdata,
@@ -53,8 +89,6 @@ summary(plm_model)
 
 ### Filtreret datasæt
 ```{r}
-# Lav pdata.frame
-data_filtered <- pdata.frame(data_filtered, index = c("club", "season"))
 
 plm_model_filtered <- plm(
   log_revenue ~ log_point + lag(log_revenue, 1),

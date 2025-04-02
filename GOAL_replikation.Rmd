@@ -139,7 +139,7 @@ summary(perform_model)
 ### Filtreret datasæt
 ```{r}
 perform_model_filtered <- plm(
-  log_point ~ log_wage,
+  log_point ~ log_wage + lag(log_point, 1),
   data = data_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )

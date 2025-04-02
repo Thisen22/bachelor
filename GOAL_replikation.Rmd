@@ -23,7 +23,15 @@ df <- data %>%
   mutate(log_wage = log(wage / mean(wage))) %>%
   mutate(log_point = log(points / (114+1-points))) %>% # i stedet for placering anvendes point, der plusses med 1 for at undgå division med 0 (selvom ingen klubber har fået 114 eller 0 point i PL nogensinde, men sikrer sig mod, hvis det skulle ske og kode/metode skal genanvendes til det)
   mutate(log_rank = log((20+1-placering) / placering)) %>% # GOAL!'s variable for præstation
+  
   ungroup()
+
+#laver sæson til numerisk tal 10_11 -> 2010
+df$season_numeric <- as.numeric(sub("_.*", "", df$season))
+df$season_numeric <- ifelse(df$season_numeric < 50, df$season_numeric + 2000, df$season_numeric + 1900)
+
+df$club   <- as.factor(df$club)
+
 
 # Tæller antal sæsoner pr- klub
 valid_clubs <- df %>%
@@ -37,10 +45,10 @@ data_filtered <- df %>%
   filter(club %in% valid_clubs)
 
 # Lav paneldataframe
-pdata <- pdata.frame(df, index = c("club", "season")) 
+pdata <- pdata.frame(df, index = c("club", "season_numeric")) 
 
 # Lav pdata.frame for filtreret data
-data_filtered <- pdata.frame(data_filtered, index = c("club", "season"))
+data_filtered <- pdata.frame(data_filtered, index = c("club", "season_numeric"))
 
 ```
 
@@ -104,14 +112,23 @@ plm_model_filtered <- plm(
 )
 
 summary(plm_model_filtered)
-fixef(plm_model_filtered)
+fixef(plm_model_filtered,
+      type = c("dmean"))
+within_intercept(plm_model_filtered)
+
+pbgtest(plm_model_filtered)
+pwartest(plm_model_filtered)
+pcdtest(plm_model_filtered, test = "cd")
+#resettest(plm_model_filtered) kan ikke køres
+
+coeftest(plm_model_filtered, vcov = vcovHC(plm_model_filtered, type = "HC1", cluster = "group"))
 ```
 
 ## Performance regression
 ### For alle holdene i datasættet:
 ```{r}
 perform_model <- plm(
-  log_rank ~ log_wage,
+  log_point ~ log_wage + lag(log_point, 1),
   data = pdata,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
@@ -130,9 +147,9 @@ perform_model_filtered <- plm(
 summary(perform_model_filtered)
 fixef(perform_model_filtered)
 
-
-model <- lm(log_point ~ log_wage + factor(club), data = data_filtered)
-summary(model)
+pbgtest(perform_model_filtered)
+pwartest(perform_model_filtered)
+pcdtest(perform_model_filtered, test = "cd")
 ```
 
 ## Win-maximization
@@ -151,7 +168,6 @@ gamma <- 0.2274
 c <- 1.2581
 R <- 25860.75
 W <- 16165.880
-
 #profit
 45 / (1+exp((a + b + c * (alpha+beta) + c * log(R) - c * log(W) + c * log(c*gamma) ) / (c*gamma -1) ))
 

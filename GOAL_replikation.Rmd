@@ -135,4 +135,28 @@ model <- lm(log_point ~ log_wage + factor(club), data = data_filtered)
 summary(model)
 ```
 
+## Win-maximization
+$$P_{it}^*=\frac{21}{1+exp(\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\bar{W_t}}{c\gamma-1})}$$
+
+## Profit-maximization
+$$P_{it}^*=\frac{21}{1+exp(\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\bar{W_t}+c\;ln(c\gamma)}{c\gamma-1})}$$
+
+##forsøg på at replikere manchester uniteds positioner i paper
+```{r}
+beta <- 0.7476
+b <- 1.4442
+a <- -0.4145
+alpha <- -0.945
+gamma <- 0.2274
+c <- 1.2581
+R <- 25860.75
+W <- 16165.880
+
+#profit
+45 / (1+exp((a + b + c * (alpha+beta) + c * log(R) - c * log(W) + c * log(c*gamma) ) / (c*gamma -1) ))
+
+#win
+45 / (1+exp((a + b + c * (alpha+beta) + c * log(R) - c * log(W)) /(c*gamma -1) ))
+```
+
 

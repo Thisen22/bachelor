@@ -14,16 +14,22 @@ library(readxl)
 library(dplyr)
 library(plm)
 library(lmtest)
-data <- read_excel("data.xlsx", range = "A1:G261")
+data <- read_excel("data.xlsx", sheet = "Sheet1", range = "A1:F261")
+data2 <- read_excel("data.xlsx",sheet = "Ark1", range = "A1:F313")
+
+data2 <- data2 %>%
+  mutate(placering = placering + 20)
+
+ny_data <- rbind(data, data2)
 
 #Formatering af lavet ud fra den i GOAL!
-df <- data %>%
+df <- ny_data %>%
+  na.omit() %>%
   group_by(season) %>%
   mutate(log_revenue = log(revenue / mean(revenue))) %>% 
   mutate(log_wage = log(wage / mean(wage))) %>%
-  mutate(log_point = log(points / (114+1-points))) %>% # i stedet for placering anvendes point, der plusses med 1 for at undgå division med 0 (selvom ingen klubber har fået 114 eller 0 point i PL nogensinde, men sikrer sig mod, hvis det skulle ske og kode/metode skal genanvendes til det)
-  mutate(log_rank = log((20+1-placering) / placering)) %>% # GOAL!'s variable for præstation
-  
+  #mutate(log_point = log(points / (114+1-points))) %>% # i stedet for placering anvendes point, der plusses med 1 for at undgå division med 0 (selvom ingen klubber har fået 114 eller 0 point i PL nogensinde, men sikrer sig mod, hvis det skulle ske og kode/metode skal genanvendes til det)
+  mutate(log_rank = log((45-placering) / placering)) %>% # GOAL!'s variable for præstation
   ungroup()
 
 #laver sæson til numerisk tal 10_11 -> 2010
@@ -52,70 +58,59 @@ data_filtered <- pdata.frame(data_filtered, index = c("club", "season_numeric"))
 
 ```
 
-## Test af RE eller FE
-### Point
+## Test af OLS, RE eller FE
+### Performance
 ```{r}
-fe_model_points <- plm(log_point ~ log_wage + lag(log_point, 1), data = data_filtered,
+fe_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1), data = data_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
-re_model_points <- plm(log_point ~ log_wage + lag(log_point, 1), data = data_filtered,
+
+re_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1), data = data_filtered,
   model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
-hausman_test <- phtest(fe_model_points, re_model_points)
+hausman_test <- phtest(fe_perform, re_perform)
 print(hausman_test)
 
-ols_model <- plm(log_point ~ log_wage + lag(log_point, 1), data = data_filtered, model = "pooling")
+ols_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1), data = data_filtered, model = "pooling")
 
 
 # FE eller OLS?
-pFtest(fe_model_points, ols_model)
+pFtest(fe_perform, ols_perform)
 ```
 
 ### Revenue
 ```{r}
-fe_model_revenue <- plm(
-  log_revenue ~ log_point + lag(log_revenue, 1),
+fe_revenue <- plm(
+  log_revenue ~ log_rank + lag(log_revenue, 1),
   data = data_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
-re_model_revenue <- plm(
-  log_revenue ~ log_point + lag(log_revenue, 1),
+re_revenue <- plm(
+  log_revenue ~ log_rank + lag(log_revenue, 1),
   data = data_filtered,
   model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
-hausman_test_revenue <- phtest(fe_model_revenue, re_model_revenue)
+hausman_test_revenue <- phtest(fe_revenue, re_revenue)
 print(hausman_test_revenue)
+
+# FE eller OLS?
+ols_revenue <- plm(log_revenue ~ log_rank + lag(log_revenue, 1), data = data_filtered, model = "pooling")
+pFtest(fe_revenue, ols_revenue)
+
 ```
 
 
 ## Revenue regression
-### For alle holdene i datasættet:
-```{r}
-plm_model <- plm(
-  log_revenue ~ log_point + lag(log_revenue, 1),
-  data = pdata,
-  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
-)
-
-summary(plm_model)
-```
-
 ### Filtreret datasæt
 ```{r}
-
-plm_model_filtered <- plm(
-  log_revenue ~ log_point + lag(log_revenue, 1),
-  data = data_filtered,
-  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
-)
-
-summary(plm_model_filtered)
-fixef(plm_model_filtered,
+summary(fe_revenue)
+fixef(fe_revenue,
       type = c("dmean"))
 within_intercept(plm_model_filtered)
 
+#diagnostics
 pbgtest(plm_model_filtered)
 pwartest(plm_model_filtered)
 pcdtest(plm_model_filtered, test = "cd")
@@ -125,27 +120,15 @@ coeftest(plm_model_filtered, vcov = vcovHC(plm_model_filtered, type = "HC1", clu
 ```
 
 ## Performance regression
-### For alle holdene i datasættet:
-```{r}
-perform_model <- plm(
-  log_point ~ log_wage + lag(log_point, 1),
-  data = pdata,
-  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
-)
-
-summary(perform_model)
-```
-
 ### Filtreret datasæt
 ```{r}
-perform_model_filtered <- plm(
-  log_point ~ log_wage + lag(log_point, 1),
-  data = data_filtered,
+summary(fe_perform)
+fixef(perform_model_filtered)
+
+fe_perform2 <- plm(log_rank ~ log_wage, data = data_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
-
-summary(perform_model_filtered)
-fixef(perform_model_filtered)
+summary(fe_perform2)
 
 pbgtest(perform_model_filtered)
 pwartest(perform_model_filtered)

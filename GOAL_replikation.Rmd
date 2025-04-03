@@ -46,14 +46,15 @@ df$season_numeric <- ifelse(df$season_numeric < 50, df$season_numeric + 2000, df
 
 df$club   <- as.factor(df$club)
 
-#covid
+#fjerner covid 2020/2021 sæson
 covid_df <- df %>%
   filter(season != "20_21")
 
+#minimum antal sæsoner (7)
 covid_valid_clubs <- covid_df %>%
   group_by(club) %>%
   summarise(n_seasons = n()) %>%
-  filter(n_seasons >= 7) %>% #minimum 7 sæsoner
+  filter(n_seasons >= 7) %>% 
   pull(club)
 
 covid_data_filtered <- covid_df %>%
@@ -62,41 +63,23 @@ covid_data_filtered <- covid_df %>%
 covid_pdata <- pdata.frame(covid_df, index =c("club", "season_numeric"))
 covid_pdata_filtered <- pdata.frame(covid_data_filtered, index =c("club", "season_numeric"))
 
-
-# Tæller antal sæsoner pr- klub
-valid_clubs <- df %>%
-  group_by(club) %>%
-  summarise(n_seasons = n()) %>%
-  filter(n_seasons >= 7) %>% #minimum 7 sæsoner
-  pull(club)
-
-# Filtrer datasættet
-data_filtered <- df %>%
-  filter(club %in% valid_clubs)
-
-# Lav paneldataframe
-pdata <- pdata.frame(df, index = c("club", "season_numeric")) 
-
-# Lav pdata.frame for filtreret data
-data_filtered <- pdata.frame(data_filtered, index = c("club", "season_numeric"))
-
 ```
 
 ## Test af OLS, RE eller FE
 ### Performance
 ```{r}
-fe_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = data_filtered,
+fe_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = covid_pdata_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
-re_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = data_filtered,
+re_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = covid_pdata_filtered,
   model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
 hausman_test <- phtest(fe_perform, re_perform)
 print(hausman_test)
 
-ols_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = data_filtered, model = "pooling")
+ols_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = covid_pdata_filtered, model = "pooling")
 
 
 # FE eller OLS?
@@ -106,13 +89,13 @@ pFtest(fe_perform, ols_perform)
 ### Revenue
 ```{r}
 fe_revenue <- plm(
-  log_revenue ~ log_rank + lag(log_revenue, 1),
-  data = data_filtered,
+  log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
+  data = covid_pdata_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 re_revenue <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
-  data = data_filtered,
+  data = covid_pdata_filtered,
   model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
@@ -120,7 +103,7 @@ hausman_test_revenue <- phtest(fe_revenue, re_revenue)
 print(hausman_test_revenue)
 
 # FE eller OLS?
-ols_revenue <- plm(log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere, data = data_filtered, model = "pooling")
+ols_revenue <- plm(log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere, data = covid_pdata_filtered, model = "pooling")
 pFtest(fe_revenue, ols_revenue)
 
 ```
@@ -129,13 +112,15 @@ pFtest(fe_revenue, ols_revenue)
 ## Revenue regression
 ### Covid
 ```{r}
+#replikation af GOAL!
 covid_fe_revenue <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1),
-  data = covid_pdata,
+  data = covid_pdata_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(covid_fe_revenue)
 
+#+ tilskuere
 covid_fe_revenue2 <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
   data = covid_pdata_filtered,
@@ -144,12 +129,8 @@ covid_fe_revenue2 <- plm(
 summary(covid_fe_revenue2)
 ```
 
-### Filtreret datasæt
+#### Diagnostics
 ```{r}
-summary(fe_revenue)
-fixef(fe_revenue,
-      type = c("dmean"))
-
 #within_intercept(plm_model_filtered) #forsøg på at få intercept
 
 #diagnostics
@@ -164,18 +145,28 @@ fixef(fe_revenue,
 ## Performance regression
 ### Filtreret datasæt
 ```{r}
+fe_perform_original <- plm(log_rank ~ log_wage + lag(log_rank, 1), data = covid_pdata_filtered,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+summary(fe_perform_original)
+
+#+log_goals
 summary(fe_perform)
 fixef(fe_perform)
 
+#fjerner lag log_rank = bedre forklaring
 fe_perform2 <- plm(log_rank ~ log_wage + log_goals, data = covid_pdata_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(fe_perform2)
-
+```
+#### Diagnostics
+```{r}
 #pbgtest(perform_model_filtered)
 #pwartest(perform_model_filtered)
 #pcdtest(perform_model_filtered, test = "cd")
 ```
+
 
 ## Win-maximization
 $$P_{it}^*=\frac{21}{1+exp(\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\bar{W_t}}{c\gamma-1})}$$

@@ -20,22 +20,22 @@ library(urca)
 data <- read_excel("data.xlsx", sheet = "Sheet1", range = "A1:I261")
 data2 <- read_excel("data.xlsx",sheet = "Ark1", range = "A1:I313")
 
-dataa <- read_excel("data2.xlsx", sheet = "Sheet1", range = "G1:G261") #målforskel
-dataa2 <- read_excel("data2.xlsx", sheet = "Ark1", range = "G1:G313") #målforskel
-dataa_ny <- rbind(dataa, dataa2)
+#dataa <- read_excel("data2.xlsx", sheet = "Sheet1", range = "G1:G261") #målforskel
+#dataa2 <- read_excel("data2.xlsx", sheet = "Ark1", range = "G1:G313") #målforskel
+#dataa_ny <- rbind(dataa, dataa2)
 
 data2 <- data2 %>%
   mutate(placering = placering + 20)
 
 ny_data <- rbind(data, data2)
-ny_data <- cbind(ny_data, dataa_ny)
+#ny_data <- cbind(ny_data, dataa_ny)
 
 
 #fjerner klubber, hvor revenue ikke er opgivet
 ny_data <- ny_data %>% filter(!is.na(revenue))
 
 #fjerner transfer kolonne
-ny_data <- ny_data %>% select(-'transfers (ind-ud)')
+#ny_data <- ny_data %>% select(-'transfers (ind-ud)')
 
 
 #Formatering af lavet ud fra den i GOAL!
@@ -46,8 +46,9 @@ df <- ny_data %>%
   #mutate(log_point = log(points / (114+1-points))) %>% # i stedet for placering anvendes point, der plusses med 1 for at undgå division med 0 (selvom ingen klubber har fået 114 eller 0 point i PL nogensinde, men sikrer sig mod, hvis det skulle ske og kode/metode skal genanvendes til det)
   mutate(log_rank = log((45-placering) / placering)) %>% # GOAL!'s variable for præstation
   mutate(log_tilskuere = log(tilskuere / mean(tilskuere))) %>%
-  mutate(log_goals = log(goals / mean(goals))) %>%
-  mutate(log_goaldiff = log(maalforskel / mean(maalforskel))) %>%
+  mutate(log_goals = log(gfpg / mean(gfpg))) %>%
+  #mutate(log_goaldiff = log(maalforskel / mean(maalforskel))) %>%
+  mutate(log_gapg = log(gapg / mean(gapg))) %>%
   ungroup()
 
 #laver sæson til numerisk tal 10_11 -> 2010
@@ -181,7 +182,7 @@ fe_perform3 <- plm(log_rank ~ log_wage + maalforskel + lag(log_rank, 1), data = 
 summary(fe_perform3)
 
 #fjerner lag log_rank = bedre forklaring
-fe_perform2 <- plm(log_rank ~ log_wage + log_goals, data = covid_pdata_filtered,
+fe_perform2 <- plm(log_rank ~ log_wage + log_goals + log_gapg, data = covid_pdata_filtered,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(fe_perform2)
@@ -228,14 +229,8 @@ $$P_{it}^*=\frac{45}{1+exp(-\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\b
 
 ### Funktions-kode
 ```{r}
-45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
-
-P_star <- X / (1 + exp(
-  (-a - b_i - c * (alpha + beta_i) - c * log(Rt_bar) + c * log(Wt_bar) + c * log(c * gamma)) / (c * gamma - 1)
-))
-
-P_star
-
+profit <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
+profit
 ```
 
 

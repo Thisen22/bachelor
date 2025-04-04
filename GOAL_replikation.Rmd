@@ -233,6 +233,16 @@ profit <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log
 profit
 ```
 
+## gennemsnitlig placering
+```{r}
+club_avg_position <- covid_pdata_filtered %>%
+  group_by(club) %>%
+  summarise(avg_position = mean(placering, na.rm = TRUE)) %>%
+  arrange(avg_position)
+
+club_avg_position
+```
+
 
 
 

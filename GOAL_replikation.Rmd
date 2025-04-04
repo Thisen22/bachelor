@@ -11,9 +11,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Dataformatering
 ```{r}
 library(readxl)
+library(ggplot2)
 library(dplyr)
+library(tidyr)
 library(plm)
 library(lmtest)
+library(urca)
 data <- read_excel("data.xlsx", sheet = "Sheet1", range = "A1:I261")
 data2 <- read_excel("data.xlsx",sheet = "Ark1", range = "A1:I313")
 
@@ -69,8 +72,18 @@ covid_data_filtered <- covid_df %>%
 
 covid_pdata <- pdata.frame(covid_df, index =c("club", "season_numeric"))
 covid_pdata_filtered <- pdata.frame(covid_data_filtered, index =c("club", "season_numeric"))
-
 ```
+
+
+## Test for unit root i variable
+```{r}
+purtest(covid_pdata_filtered$log_wage, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_revenue, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_rank, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_tilskuere, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_goals, test = "ips", exo = "intercept", lags = 1)
+```
+Ingen af variablerne viser unit root - så alt er godt - samme gælder, hvis man laver "madwu" test i stedet for "ips"
 
 ## Test af OLS, RE eller FE
 ### Performance

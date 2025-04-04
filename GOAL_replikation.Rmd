@@ -78,11 +78,11 @@ covid_pdata_filtered <- pdata.frame(covid_data_filtered, index =c("club", "seaso
 
 ## Test for unit root i variable
 ```{r}
-purtest(covid_pdata_filtered$log_wage, test = "ips", exo = "intercept", lags = 1)
-purtest(covid_pdata_filtered$log_revenue, test = "ips", exo = "intercept", lags = 1)
-purtest(covid_pdata_filtered$log_rank, test = "ips", exo = "intercept", lags = 1)
-purtest(covid_pdata_filtered$log_tilskuere, test = "ips", exo = "intercept", lags = 1)
-purtest(covid_pdata_filtered$log_goals, test = "ips", exo = "intercept", lags = 1)
+#purtest(covid_pdata_filtered$log_wage, test = "ips", exo = "intercept", lags = 1)
+#purtest(covid_pdata_filtered$log_revenue, test = "ips", exo = "intercept", lags = 1)
+#purtest(covid_pdata_filtered$log_rank, test = "ips", exo = "intercept", lags = 1)
+#purtest(covid_pdata_filtered$log_tilskuere, test = "ips", exo = "intercept", lags = 1)
+#purtest(covid_pdata_filtered$log_goals, test = "ips", exo = "intercept", lags = 1)
 ```
 Ingen af variablerne viser unit root - så alt er godt - samme gælder, hvis man laver "madwu" test i stedet for "ips"
 
@@ -148,6 +148,8 @@ covid_fe_revenue2 <- plm(
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(covid_fe_revenue2)
+
+
 ```
 
 #### Diagnostics
@@ -176,10 +178,10 @@ summary(fe_perform)
 fixef(fe_perform)
 
 # maalforskel i stedet for 
-fe_perform3 <- plm(log_rank ~ log_wage + maalforskel + lag(log_rank, 1), data = covid_pdata_filtered,
-  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
-)
-summary(fe_perform3)
+#fe_perform3 <- plm(log_rank ~ log_wage + maalforskel + lag(log_rank, 1), data = covid_pdata_filtered,
+#  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+#)
+#summary(fe_perform3)
 
 #fjerner lag log_rank = bedre forklaring
 fe_perform2 <- plm(log_rank ~ log_wage + log_goals + log_gapg, data = covid_pdata_filtered,
@@ -199,27 +201,30 @@ summary(fe_perform2)
 $$P_{it}^*=\frac{45}{1+exp(-\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\bar{W_t}}{c\gamma-1})}$$
 
 ```{r}
-# klubspecifikke
-b_i <- fixef(fe_perform2)
-beta_i <- fixef(covid_fe_revenue2)
-
 # Fælles konstanter
 X <- 45            # Antal positioner
-a <- mean(b_i)        
-alpha <- mean(beta_i)     
-c <- 1.496608      # estimat fra perform regression på log_wage
-gamma <- 0.172558       # estimat fra revenue regression på log_rank
+a <- 0       
+alpha <- 0  
+c <- summary(fe_perform2)$coefficients["log_wage", "Estimate"]      # estimat fra perform regression på log_wage
+gamma <- summary(covid_fe_revenue2)$coefficients["log_rank", "Estimate"]       # estimat fra revenue regression på log_rank
 Rt_bar <- mean(covid_pdata_filtered$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
 Wt_bar <- mean(covid_pdata_filtered$wage)   # Gennemsnitlig lønudgift
+
+# klubspecifikke
+b_i <- fixef(fe_perform2) - a
+b_bourne <- 0.9167350
+beta_i <- fixef(covid_fe_revenue2) - alpha
+beta_bourne <- 1.1265645
 
 # we focus on the average best responses over the sample period for each team and compare it with the average league position actually achieved
 
 # Beregning
-P_hat <- X / (1 + exp(
-  (-a - b_i - c * (alpha + beta_i) - c * log(Rt_bar) + c * log(Wt_bar)) / (c * gamma - 1)
-))
-
+P_hat <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(R) - c * log(W)) /(c*gamma -1) ))
 P_hat
+
+
+
+45 / (1+exp(-(a + b_bourne + c * (alpha+beta_bourne) + c * log(R) - c * log(W)) /(c*gamma -1) ))
 
 ```
 
@@ -231,6 +236,8 @@ $$P_{it}^*=\frac{45}{1+exp(-\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\b
 ```{r}
 profit <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
 profit
+
+
 ```
 
 ## gennemsnitlig placering
@@ -253,7 +260,7 @@ b <- 1.4442
 a <- -0.4145
 alpha <- -0.945
 gamma <- 0.2274
-c <- 1.2581
+c <- 1.2581 
 R <- 25860.75
 W <- 16165.880
 #profit

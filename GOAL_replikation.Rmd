@@ -195,10 +195,51 @@ summary(fe_perform2)
 
 
 ## Win-maximization
-$$P_{it}^*=\frac{21}{1+exp(\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\bar{W_t}}{c\gamma-1})}$$
+$$P_{it}^*=\frac{45}{1+exp(-\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\bar{W_t}}{c\gamma-1})}$$
+
+```{r}
+# klubspecifikke
+b_i <- fixef(fe_perform2)
+beta_i <- fixef(covid_fe_revenue2)
+
+# Fælles konstanter
+X <- 45            # Antal positioner
+a <- mean(b_i)        
+alpha <- mean(beta_i)     
+c <- 1.496608      # estimat fra perform regression på log_wage
+gamma <- 0.172558       # estimat fra revenue regression på log_rank
+Rt_bar <- mean(covid_pdata_filtered$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
+Wt_bar <- mean(covid_pdata_filtered$wage)   # Gennemsnitlig lønudgift
+
+# we focus on the average best responses over the sample period for each team and compare it with the average league position actually achieved
+
+# Beregning
+P_hat <- X / (1 + exp(
+  (-a - b_i - c * (alpha + beta_i) - c * log(Rt_bar) + c * log(Wt_bar)) / (c * gamma - 1)
+))
+
+P_hat
+
+```
+
 
 ## Profit-maximization
-$$P_{it}^*=\frac{21}{1+exp(\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\bar{W_t}+c\;ln(c\gamma)}{c\gamma-1})}$$
+$$P_{it}^*=\frac{45}{1+exp(-\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\bar{W_t}+c\;ln(c\gamma)}{c\gamma-1})}$$
+
+### Funktions-kode
+```{r}
+45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
+
+P_star <- X / (1 + exp(
+  (-a - b_i - c * (alpha + beta_i) - c * log(Rt_bar) + c * log(Wt_bar) + c * log(c * gamma)) / (c * gamma - 1)
+))
+
+P_star
+
+```
+
+
+
 
 ##forsøg på at replikere manchester uniteds positioner i paper
 ```{r}
@@ -211,10 +252,10 @@ c <- 1.2581
 R <- 25860.75
 W <- 16165.880
 #profit
-45 / (1+exp((a + b + c * (alpha+beta) + c * log(R) - c * log(W) + c * log(c*gamma) ) / (c*gamma -1) ))
+45 / (1+exp(-(a + b + c * (alpha+beta) + c * log(R) - c * log(W) + c * log(c*gamma) ) / (c*gamma -1) ))
 
 #win
-45 / (1+exp((a + b + c * (alpha+beta) + c * log(R) - c * log(W)) /(c*gamma -1) ))
+45 / (1+exp(-(a + b + c * (alpha+beta) + c * log(R) - c * log(W)) /(c*gamma -1) ))
 ```
 
 

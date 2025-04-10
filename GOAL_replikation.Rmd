@@ -314,8 +314,8 @@ a <- 0
 alpha <- 0  
 c <- summary(fe_perform2)$coefficients["log_wage", "Estimate"]      # estimat fra perform regression på log_wage
 gamma <- summary(covid_fe_revenue2)$coefficients["log_rank", "Estimate"]       # estimat fra revenue regression på log_rank
-Rt_bar <- mean(pdata_filt$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
-Wt_bar <- mean(pdata_filt$wage)   # Gennemsnitlig lønudgift
+Rt_bar <- mean(covid_pdata$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
+Wt_bar <- mean(covid_pdata$wage)   # Gennemsnitlig lønudgift
 
 #Fælles for dummy
 c_dummy <- summary(fe_perform_dummy2)$coefficients["log_wage", "Estimate"]
@@ -329,10 +329,17 @@ b_i_dummy <- fixef(fe_perform_dummy2)
 
 positioner <- data.frame(b_i, beta_i)  # matcher rækkefølgen!
 
+club_avg_position <- pdata_filt%>%
+  group_by(club) %>%
+  summarise(avg_position = mean(placering, na.rm = TRUE)) %>%
+  arrange(club)
+
+positioner$avg_placering <- club_avg_position$avg_position
+
 # we focus on the average best responses over the sample period for each team and compare it with the average league position actually achieved
 
 # Beregning
-positioner$win <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar)) /(c*gamma -1) ))
+#positioner$win <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar)) /(c*gamma -1) ))
 positioner$win_dummy <- 45 / (1+exp(-(a + b_i_dummy + c_dummy * (alpha+beta_i) + c_dummy * log(Rt_bar) - c_dummy * log(Wt_bar)) /(c*gamma -1) ))
 
 ```
@@ -343,29 +350,25 @@ $$P_{it}^*=\frac{45}{1+exp(-\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\b
 
 ### Funktions-kode
 ```{r}
-positioner$profit <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
+#positioner$profit <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
 positioner$profit_dummy <- 45 / (1+exp(-(a + b_i_dummy + c_dummy * (alpha+beta_i) + c_dummy * log(Rt_bar) - c_dummy * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
 ```
 
 ## gennemsnitlig placering
 ```{r}
-club_avg_position <- pdata_filt%>%
-  group_by(club) %>%
-  summarise(avg_position = mean(placering, na.rm = TRUE)) %>%
-  arrange(club)
-
-positioner$avg_placering <- club_avg_position$avg_position
 
 positioner <- positioner %>%
-  mutate(afvig_profit = profit - avg_placering) %>%
-  mutate(afvig_win = win - avg_placering) %>%
+  #mutate(afvig_profit = profit - avg_placering) %>%
+  #mutate(afvig_win = win - avg_placering) %>%
   mutate(afvig_win_d = win_dummy - avg_placering) %>%
   mutate(afvig_profit_d = profit_dummy - avg_placering)
+
 
 mean(positioner$afvig_profit)
 mean(positioner$afvig_win)
 mean(positioner$afvig_profit_d)
 mean(positioner$afvig_win_d)
+
 
 ```
 
@@ -420,6 +423,7 @@ df2$profit <- 45 / (1+exp(-(a + b + c * (alpha+beta) + c * log(R) - c * log(W) +
 
 #win
 df2$win <- 45 / (1+exp(-(a + b + c * (alpha+beta) + c * log(R) - c * log(W)) /(c*gamma -1) ))
+
 
 ```
 Koden er præcis ligesom den fra det andet replikationspaper, fordi vi får i hvert fald præcis de samme tal som han gør i det paper

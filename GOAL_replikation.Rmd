@@ -110,6 +110,7 @@ purtest(pdata_filt$log_revenue, test = "ips", exo = "intercept", lags = 1)
 purtest(pdata_filt$log_rank, test = "ips", exo = "intercept", lags = 1)
 purtest(pdata_filt$log_tilskuere, test = "ips", exo = "intercept", lags = 1)
 purtest(pdata_filt$log_goals, test = "ips", exo = "intercept", lags = 1)
+purtest(pdata_filt$log_gapg, test = "ips", exo = "intercept", lags = 1)
 ```
 Ingen af variablerne viser unit root - så alt er godt - samme gælder, hvis man laver "madwu" test i stedet for "ips"
 

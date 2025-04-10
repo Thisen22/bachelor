@@ -17,6 +17,7 @@ library(tidyr)
 library(plm)
 library(lmtest)
 library(urca)
+library(car)
 data <- read_excel("data.xlsx", sheet = "Sheet1", range = "A1:I261")
 data2 <- read_excel("data.xlsx",sheet = "Ark1", range = "A1:I313")
 
@@ -93,51 +94,57 @@ covid_data_filtered <- covid_df %>%
   filter(club %in% covid_valid_clubs)
 
 covid_pdata <- pdata.frame(covid_df, index =c("club", "season_numeric"))
-covid_pdata_filtered <- pdata.frame(covid_data_filtered, index =c("club", "season_numeric"))
+pdata_filt<- pdata.frame(covid_data_filtered, index =c("club", "season_numeric"))
 ```
 
 
 ## Test for unit root i variable
 ```{r}
-purtest(covid_pdata_filtered$log_wage, test = "ips", exo = "intercept", lags = 1)
-purtest(covid_pdata_filtered$log_revenue, test = "ips", exo = "intercept", lags = 1)
-purtest(covid_pdata_filtered$log_rank, test = "ips", exo = "intercept", lags = 1)
-purtest(covid_pdata_filtered$log_tilskuere, test = "ips", exo = "intercept", lags = 1)
-purtest(covid_pdata_filtered$log_goals, test = "ips", exo = "intercept", lags = 1)
+purtest(pdata_filt$log_wage, test = "ips", exo = "intercept", lags = 1)
+purtest(pdata_filt$log_revenue, test = "ips", exo = "intercept", lags = 1)
+purtest(pdata_filt$log_rank, test = "ips", exo = "intercept", lags = 1)
+purtest(pdata_filt$log_tilskuere, test = "ips", exo = "intercept", lags = 1)
+purtest(pdata_filt$log_goals, test = "ips", exo = "intercept", lags = 1)
 ```
 Ingen af variablerne viser unit root - så alt er godt - samme gælder, hvis man laver "madwu" test i stedet for "ips"
 
 ## Test af OLS, RE eller FE
-### Performance
+### Performance med dummy
 ```{r}
-fe_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = covid_pdata_filtered,
+fe_perform2 <- plm(
+  log_rank ~ log_wage + I(log_wage*TransitionSeason) + log_goals + log_gapg, data = pdata_filt,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
-re_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = covid_pdata_filtered,
+re_perform <- plm(
+  log_rank ~ log_wage + I(log_wage*TransitionSeason) + log_goals + log_gapg, data = pdata_filt,
   model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
-hausman_test <- phtest(fe_perform, re_perform)
-print(hausman_test)
-
-ols_perform <- plm(log_rank ~ log_wage + lag(log_rank, 1) + log_goals, data = covid_pdata_filtered, model = "pooling")
+ols_perform <- plm(
+  log_rank ~ log_wage + I(log_wage*TransitionSeason) + log_goals + log_gapg, data = pdata_filt,
+  model = "pooling"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
 
 
 # FE eller OLS?
-pFtest(fe_perform, ols_perform)
+pFtest(fe_perform2, ols_perform) #signifikant = FE
+
+#FE eller RE?
+hausman_test <- phtest(fe_perform2, re_perform)
+print(hausman_test) #signifikant = FE
 ```
 
 ### Revenue
 ```{r}
 fe_revenue <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
-  data = covid_pdata_filtered,
+  data = pdata_filt,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 re_revenue <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
-  data = covid_pdata_filtered,
+  data = pdata_filt,
   model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
@@ -145,7 +152,7 @@ hausman_test_revenue <- phtest(fe_revenue, re_revenue)
 print(hausman_test_revenue)
 
 # FE eller OLS?
-ols_revenue <- plm(log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere, data = covid_pdata_filtered, model = "pooling")
+ols_revenue <- plm(log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere, data = pdata_filt, model = "pooling")
 pFtest(fe_revenue, ols_revenue)
 
 ```
@@ -157,15 +164,15 @@ pFtest(fe_revenue, ols_revenue)
 #replikation af GOAL!
 covid_fe_revenue <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1),
-  data = covid_pdata_filtered,
+  data = pdata_filt,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(covid_fe_revenue)
 
-#+ tilskuere
+#+ tilskuere = den vi har valgt
 covid_fe_revenue2 <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
-  data = covid_pdata_filtered,
+  data = pdata_filt,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(covid_fe_revenue2)
@@ -173,7 +180,7 @@ summary(covid_fe_revenue2)
 # med dummy for op-/nedrykning
 fe_revenue_dummy <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1) + I(lag(log_revenue, 1) * TransitionSeason) + log_tilskuere,
-  data = covid_pdata_filtered,
+  data = pdata_filt,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 
@@ -183,21 +190,42 @@ summary(fe_revenue_dummy)
 
 #### Diagnostics
 ```{r}
-#within_intercept(plm_model_filtered) #forsøg på at få intercept
+#Heteroskedasticity - H0: homoskedasticity
+bptest(covid_fe_revenue2) #afvises
 
-#diagnostics
-#pbgtest(plm_model_filtered)
-#pwartest(plm_model_filtered)
-#pcdtest(plm_model_filtered, test = "cd")
-#resettest(plm_model_filtered) kan ikke køres
+#Wooldridge test for serial corelation - H0: ingen serial correlation 
+pbgtest(covid_fe_revenue2) #afvises
+pwartest(covid_fe_revenue2) # afvises
 
-#coeftest(plm_model_filtered, vcov = vcovHC(plm_model_filtered, type = "HC1", cluster = "group"))
+#Peseran test for cross sectional depedence - H0: ingen
+pcdtest(covid_fe_revenue2, test = "cd") #kan ikke afvises
+
+#Multicollinearity - over 10 = så stopper du
+vif(lm(
+  log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
+  data = pdata_filt
+  )) # så fint
+
+#Test for ikke lineære effekter i squared term - H0: der er lineære effekter
+fe_revenue_dummy_2 <- plm(
+  log_revenue ~ log_rank + lag(log_revenue, 1) + lag(log_revenue^2,1) + log_tilskuere,
+  data = pdata_filt,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+summary(fe_revenue_dummy_2) # log_revenue^2 er ikke signifikant
+
+
+
+
+#resettest(covid_fe_revenue2) #kan ikke køres
+
+coeftest(covid_fe_revenue2, vcov = vcovHC(covid_fe_revenue2, type = "HC1", cluster = "group"))
 ```
 
 ## Performance regression
 ### Filtreret datasæt
 ```{r}
-fe_perform_original <- plm(log_rank ~ log_wage + lag(log_rank, 1), data = covid_pdata_filtered,
+fe_perform_original <- plm(log_rank ~ log_wage + lag(log_rank, 1), data = pdata_filt,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(fe_perform_original)
@@ -207,13 +235,18 @@ summary(fe_perform)
 fixef(fe_perform)
 
 # maalforskel i stedet for 
-#fe_perform3 <- plm(log_rank ~ log_wage + maalforskel + lag(log_rank, 1), data = covid_pdata_filtered,
+#fe_perform3 <- plm(log_rank ~ log_wage + maalforskel + lag(log_rank, 1), data = pdata_filt,
 #  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 #)
 #summary(fe_perform3)
 
+```
+
+### de rigtige!!!
+```{r}
 #fjerner lag log_rank = bedre forklaring
-fe_perform2 <- plm(log_rank ~ log_wage + log_goals + log_gapg, data = covid_pdata_filtered,
+fe_perform2 <- plm(
+  log_rank ~ log_wage + log_goals + log_gapg, data = pdata_filt,
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(fe_perform2)
@@ -221,16 +254,41 @@ summary(fe_perform2)
 #tilføjer dummy for op-/nedrykning
 fe_perform_dummy <- plm(
   log_rank ~ log_wage + I(log_wage*TransitionSeason) + log_goals + log_gapg,
-  data = covid_pdata_filtered,
+  data = pdata_filt,
   model = "within"
 )
 summary(fe_perform_dummy)
 ```
+
 #### Diagnostics
 ```{r}
-#pbgtest(perform_model_filtered)
-#pwartest(perform_model_filtered)
-#pcdtest(perform_model_filtered, test = "cd")
+#Heteroskedasticity - H0: homoskedasticity
+bptest(fe_perform_dummy) #afvises
+
+#Wooldridge test for serial corelation - H0: ingen serial correlation 
+pbgtest(fe_perform_dummy) #afvises
+pwartest(fe_perform_dummy) # afvises
+
+#Peseran test for cross sectional depedence - H0: ingen
+pcdtest(fe_perform_dummy, test = "cd") #kan ikke afvises
+
+#Multicollinearity - over 10 = så stopper du
+vif(lm(
+  log_rank ~ log_wage + I(log_wage*TransitionSeason) + log_goals + log_gapg,
+  data = pdata_filt
+  )) # så fint
+
+#Test for ikke lineære effekter i squared term - H0: der er lineære effekter
+fe_perform_dummy_2 <- plm(
+  log_rank ~ log_wage + I(log_wage^2) + I(log_wage*TransitionSeason) + log_goals + log_gapg,
+  data = pdata_filt,
+  model = "within"
+)
+summary(fe_perform_dummy_2) # log_wage^2 er signifikant, så det skal inkluderes i model
+
+
+
+coeftest(covid_fe_revenue2, vcov = vcovHC(covid_fe_revenue2, type = "HC1", cluster = "group"))
 ```
 
 
@@ -244,18 +302,18 @@ a <- 0
 alpha <- 0  
 c <- summary(fe_perform2)$coefficients["log_wage", "Estimate"]      # estimat fra perform regression på log_wage
 gamma <- summary(covid_fe_revenue2)$coefficients["log_rank", "Estimate"]       # estimat fra revenue regression på log_rank
-Rt_bar <- mean(covid_pdata_filtered$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
-Wt_bar <- mean(covid_pdata_filtered$wage)   # Gennemsnitlig lønudgift
+Rt_bar <- mean(pdata_filt$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
+Wt_bar <- mean(pdata_filt$wage)   # Gennemsnitlig lønudgift
 
 #Fælles for dummy
-c_dummy <- summary(fe_perform_dummy)$coefficients["log_wage", "Estimate"]
+c_dummy <- summary(fe_perform_dummy_2)$coefficients["log_wage", "Estimate"]
 
 # klubspecifikke
 b_i <- fixef(fe_perform2)
 beta_i <- fixef(covid_fe_revenue2)
 
 #klubspecifikke for dummy
-b_i_dummy <- fixef(fe_perform_dummy)
+b_i_dummy <- fixef(fe_perform_dummy_2)
 
 positioner <- data.frame(b_i, beta_i)  # matcher rækkefølgen!
 
@@ -279,7 +337,7 @@ positioner$profit_dummy <- 45 / (1+exp(-(a + b_i_dummy + c_dummy * (alpha+beta_i
 
 ## gennemsnitlig placering
 ```{r}
-club_avg_position <- covid_pdata_filtered %>%
+club_avg_position <- pdata_filt%>%
   group_by(club) %>%
   summarise(avg_position = mean(placering, na.rm = TRUE)) %>%
   arrange(club)

@@ -49,6 +49,10 @@ prev_season_data <- ny_data %>%
   rename(prev_season = season_numeric, prev_division = division) %>%
   mutate(season_numeric = prev_season + 1)
 
+#dummy for premier league
+ny_data <- ny_data %>%
+  mutate(PL = ifelse(placering <= 20, 1, 0))
+
 ny_data <- ny_data %>%
   left_join(prev_season_data, by = c("club", "season_numeric"))
 
@@ -98,8 +102,8 @@ covid_valid_clubs <- covid_df %>%
 covid_data_filtered <- covid_df %>%
   filter(club %in% covid_valid_clubs)
 
-covid_pdata <- pdata.frame(covid_df, index =c("club", "season_numeric"))
-pdata_filt<- pdata.frame(covid_data_filtered, index =c("club", "season_numeric"))
+covid_pdata <- pdata.frame(covid_df, index =c("club", "season_numeric")) #hele datasæt - covid
+pdata_filt<- pdata.frame(covid_data_filtered, index =c("club", "season_numeric")) #datasæt hvor klubber med færre deltagelse er sorteret fra
 ```
 
 
@@ -372,10 +376,8 @@ mean(positioner$afvig_win_d)
 
 ```
 
-## nyt forsøg med ALLE klubber - covid sæson
+## nyt forsøg med ALLE klubber i regression
 ```{r}
-covid_pdata
-
 #replikation af GOAL!
 goal_revenue <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1),

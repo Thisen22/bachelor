@@ -82,11 +82,11 @@ df$club   <- as.factor(df$club)
 covid_df <- df %>%
   filter(season != "20_21")
 
-#minimum antal sæsoner (7)
+#minimum antal sæsoner (8)
 covid_valid_clubs <- covid_df %>%
   group_by(club) %>%
   summarise(n_seasons = n()) %>%
-  filter(n_seasons >= 9) %>% 
+  filter(n_seasons >= 8) %>% 
   pull(club)
 
 covid_data_filtered <- covid_df %>%
@@ -99,11 +99,11 @@ covid_pdata_filtered <- pdata.frame(covid_data_filtered, index =c("club", "seaso
 
 ## Test for unit root i variable
 ```{r}
-#purtest(covid_pdata_filtered$log_wage, test = "ips", exo = "intercept", lags = 1)
-#purtest(covid_pdata_filtered$log_revenue, test = "ips", exo = "intercept", lags = 1)
-#purtest(covid_pdata_filtered$log_rank, test = "ips", exo = "intercept", lags = 1)
-#purtest(covid_pdata_filtered$log_tilskuere, test = "ips", exo = "intercept", lags = 1)
-#purtest(covid_pdata_filtered$log_goals, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_wage, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_revenue, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_rank, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_tilskuere, test = "ips", exo = "intercept", lags = 1)
+purtest(covid_pdata_filtered$log_goals, test = "ips", exo = "intercept", lags = 1)
 ```
 Ingen af variablerne viser unit root - så alt er godt - samme gælder, hvis man laver "madwu" test i stedet for "ips"
 

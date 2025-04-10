@@ -53,7 +53,12 @@ ny_data <- ny_data %>%
   left_join(prev_season_data, by = c("club", "season_numeric"))
 
 ny_data <- ny_data %>%
-  mutate(TransitionSeason = ifelse(division != prev_division, 1, 0))
+  mutate(TransitionSeason = ifelse(division != prev_division, 1, 0)) %>%
+  mutate(
+    Promoted = ifelse(division == "Premier League" & prev_division == "Championship", 1, 0),
+    Relegated = ifelse(division == "Championship" & prev_division == "Premier League", 1, 0)
+  )
+
 
 ny_data$TransitionSeason[is.na(ny_data$TransitionSeason)] <- 0 
 
@@ -257,7 +262,13 @@ fe_perform_dummy <- plm(
   data = pdata_filt,
   model = "within"
 )
-summary(fe_perform_dummy)
+
+fe_perform_dummy2 <- plm(
+  log_rank ~ log_wage + I(log_wage^2) + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg,
+  data = pdata_filt,
+  model = "within"
+)
+summary(fe_perform_dummy2)
 ```
 
 #### Diagnostics
@@ -306,14 +317,14 @@ Rt_bar <- mean(pdata_filt$revenue)   # Gennemsnitlig omsætning for alle klubber
 Wt_bar <- mean(pdata_filt$wage)   # Gennemsnitlig lønudgift
 
 #Fælles for dummy
-c_dummy <- summary(fe_perform_dummy_2)$coefficients["log_wage", "Estimate"]
+c_dummy <- summary(fe_perform_dummy2)$coefficients["log_wage", "Estimate"]
 
 # klubspecifikke
 b_i <- fixef(fe_perform2)
 beta_i <- fixef(covid_fe_revenue2)
 
 #klubspecifikke for dummy
-b_i_dummy <- fixef(fe_perform_dummy_2)
+b_i_dummy <- fixef(fe_perform_dummy2)
 
 positioner <- data.frame(b_i, beta_i)  # matcher rækkefølgen!
 

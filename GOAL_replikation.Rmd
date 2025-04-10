@@ -34,6 +34,29 @@ ny_data <- rbind(data, data2)
 #fjerner klubber, hvor revenue ikke er opgivet
 ny_data <- ny_data %>% filter(!is.na(revenue))
 
+ny_data <- ny_data %>%
+  mutate(division = ifelse(placering <= 20, "Premier League", "Championship"))
+
+#laver sæson til numerisk tal 10_11 -> 2010
+ny_data <- ny_data %>%
+  mutate(season_numeric = as.numeric(sub("_.*", "", season))) %>%
+  mutate(season_numeric = ifelse(season_numeric < 50, season_numeric + 2000, season_numeric + 1900))
+
+#dummy for oprykning/nedrykning
+prev_season_data <- ny_data %>%
+  select(club, season_numeric, division) %>%
+  rename(prev_season = season_numeric, prev_division = division) %>%
+  mutate(season_numeric = prev_season + 1)
+
+ny_data <- ny_data %>%
+  left_join(prev_season_data, by = c("club", "season_numeric"))
+
+ny_data <- ny_data %>%
+  mutate(TransitionSeason = ifelse(division != prev_division, 1, 0))
+
+ny_data$TransitionSeason[is.na(ny_data$TransitionSeason)] <- 0 
+
+
 #fjerner transfer kolonne
 #ny_data <- ny_data %>% select(-'transfers (ind-ud)')
 
@@ -51,11 +74,9 @@ df <- ny_data %>%
   mutate(log_gapg = log(gapg / mean(gapg))) %>%
   ungroup()
 
-#laver sæson til numerisk tal 10_11 -> 2010
-df$season_numeric <- as.numeric(sub("_.*", "", df$season))
-df$season_numeric <- ifelse(df$season_numeric < 50, df$season_numeric + 2000, df$season_numeric + 1900)
 
 df$club   <- as.factor(df$club)
+
 
 #fjerner covid 2020/2021 sæson
 covid_df <- df %>%
@@ -65,7 +86,7 @@ covid_df <- df %>%
 covid_valid_clubs <- covid_df %>%
   group_by(club) %>%
   summarise(n_seasons = n()) %>%
-  filter(n_seasons >= 7) %>% 
+  filter(n_seasons >= 9) %>% 
   pull(club)
 
 covid_data_filtered <- covid_df %>%
@@ -149,6 +170,14 @@ covid_fe_revenue2 <- plm(
 )
 summary(covid_fe_revenue2)
 
+# med dummy for op-/nedrykning
+fe_revenue_dummy <- plm(
+  log_revenue ~ log_rank + lag(log_revenue, 1) + I(lag(log_revenue, 1) * TransitionSeason) + log_tilskuere,
+  data = covid_pdata_filtered,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+summary(fe_revenue_dummy)
 
 ```
 
@@ -188,6 +217,14 @@ fe_perform2 <- plm(log_rank ~ log_wage + log_goals + log_gapg, data = covid_pdat
   model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
 )
 summary(fe_perform2)
+
+#tilføjer dummy for op-/nedrykning
+fe_perform_dummy <- plm(
+  log_rank ~ log_wage + I(log_wage*TransitionSeason) + log_goals + log_gapg,
+  data = covid_pdata_filtered,
+  model = "within"
+)
+summary(fe_perform_dummy)
 ```
 #### Diagnostics
 ```{r}
@@ -210,16 +247,23 @@ gamma <- summary(covid_fe_revenue2)$coefficients["log_rank", "Estimate"]       #
 Rt_bar <- mean(covid_pdata_filtered$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
 Wt_bar <- mean(covid_pdata_filtered$wage)   # Gennemsnitlig lønudgift
 
+#Fælles for dummy
+c_dummy <- summary(fe_perform_dummy)$coefficients["log_wage", "Estimate"]
+
 # klubspecifikke
 b_i <- fixef(fe_perform2)
 beta_i <- fixef(covid_fe_revenue2)
+
+#klubspecifikke for dummy
+b_i_dummy <- fixef(fe_perform_dummy)
 
 positioner <- data.frame(b_i, beta_i)  # matcher rækkefølgen!
 
 # we focus on the average best responses over the sample period for each team and compare it with the average league position actually achieved
 
 # Beregning
-positioner$win <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(R) - c * log(W)) /(c*gamma -1) ))
+positioner$win <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar)) /(c*gamma -1) ))
+positioner$win_dummy <- 45 / (1+exp(-(a + b_i_dummy + c_dummy * (alpha+beta_i) + c_dummy * log(Rt_bar) - c_dummy * log(Wt_bar)) /(c*gamma -1) ))
 
 ```
 
@@ -230,6 +274,7 @@ $$P_{it}^*=\frac{45}{1+exp(-\frac{a+b_i+c(\alpha+\beta_i)+c\;ln\bar{R_t}-c\;ln\b
 ### Funktions-kode
 ```{r}
 positioner$profit <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
+positioner$profit_dummy <- 45 / (1+exp(-(a + b_i_dummy + c_dummy * (alpha+beta_i) + c_dummy * log(Rt_bar) - c_dummy * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
 ```
 
 ## gennemsnitlig placering
@@ -243,10 +288,14 @@ positioner$avg_placering <- club_avg_position$avg_position
 
 positioner <- positioner %>%
   mutate(afvig_profit = profit - avg_placering) %>%
-  mutate(afvig_win = win - avg_placering)
+  mutate(afvig_win = win - avg_placering) %>%
+  mutate(afvig_win_d = win_dummy - avg_placering) %>%
+  mutate(afvig_profit_d = profit_dummy - avg_placering)
 
 mean(positioner$afvig_profit)
 mean(positioner$afvig_win)
+mean(positioner$afvig_profit_d)
+mean(positioner$afvig_win_d)
 
 ```
 

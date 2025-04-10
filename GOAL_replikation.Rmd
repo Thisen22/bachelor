@@ -275,32 +275,32 @@ summary(fe_perform_dummy2)
 #### Diagnostics
 ```{r}
 #Heteroskedasticity - H0: homoskedasticity
-bptest(fe_perform_dummy) #afvises
+bptest(fe_perform_dummy2) #består
 
 #Wooldridge test for serial corelation - H0: ingen serial correlation 
-pbgtest(fe_perform_dummy) #afvises
-pwartest(fe_perform_dummy) # afvises
+pbgtest(fe_perform_dummy2) #afvises
+pwartest(fe_perform_dummy2) # afvises
 
 #Peseran test for cross sectional depedence - H0: ingen
-pcdtest(fe_perform_dummy, test = "cd") #kan ikke afvises
+pcdtest(fe_perform_dummy2, test = "cd") #kan ikke afvises
 
 #Multicollinearity - over 10 = så stopper du
 vif(lm(
-  log_rank ~ log_wage + I(log_wage*TransitionSeason) + log_goals + log_gapg,
+  log_rank ~ log_wage + I(log_wage^2) + I(log_wage*Promoted) + I(log_wage*Relegated)  + log_goals + log_gapg,
   data = pdata_filt
   )) # så fint
 
 #Test for ikke lineære effekter i squared term - H0: der er lineære effekter
-fe_perform_dummy_2 <- plm(
-  log_rank ~ log_wage + I(log_wage^2) + I(log_wage*TransitionSeason) + log_goals + log_gapg,
-  data = pdata_filt,
-  model = "within"
-)
-summary(fe_perform_dummy_2) # log_wage^2 er signifikant, så det skal inkluderes i model
+#fe_perform_dummy_2 <- plm(
+#  log_rank ~ log_wage + I(log_wage^2) + I(log_wage*TransitionSeason) + log_goals + log_gapg,
+#  data = pdata_filt,
+#  model = "within"
+#)
+#summary(fe_perform_dummy_2) # log_wage^2 er signifikant, så det skal inkluderes i model
 
 
 
-coeftest(covid_fe_revenue2, vcov = vcovHC(covid_fe_revenue2, type = "HC1", cluster = "group"))
+coeftest(fe_perform_dummy2, vcov = vcovHC(fe_perform_dummy2, type = "HC1", cluster = "group"))
 ```
 
 

@@ -96,7 +96,7 @@ covid_df <- df %>%
 covid_valid_clubs <- covid_df %>%
   group_by(club) %>%
   summarise(n_seasons = n()) %>%
-  filter(n_seasons >= 8) %>% 
+  filter(n_seasons >= 6) %>% 
   pull(club)
 
 covid_data_filtered <- covid_df %>%

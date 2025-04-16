@@ -96,7 +96,7 @@ covid_df <- df %>%
 covid_valid_clubs <- covid_df %>%
   group_by(club) %>%
   summarise(n_seasons = n()) %>%
-  filter(n_seasons >= 6) %>% 
+  filter(n_seasons >= 8) %>% 
   pull(club)
 
 covid_data_filtered <- covid_df %>%
@@ -507,7 +507,20 @@ klubber_fjern8 <- c(
 positioner8 <- positioner2[!rownames(positioner2) %in% klubber_fjern8, ]
 mean(positioner8$afvig_profit)
 mean(positioner8$afvig_win)
+
+#fjerner klubber der har været med i under 3 sæsoner
+klubber_fjern3 <- c(
+  "Burton", 
+  "MK Dons", 
+  "Scunthorpe"
+)
+
+# Fjern klubberne baseret på rownames
+positioner3 <- positioner2[!rownames(positioner2) %in% klubber_fjern3, ]
+mean(positioner3$afvig_profit)
+mean(positioner3$afvig_win)
 ```
+
 
 
 ##forsøg på at replikere win vs profit positioner i paper
@@ -562,4 +575,21 @@ df2$win <- 45 / (1+exp(-(a + b + c * (alpha+beta) + c * log(R) - c * log(W)) /(c
 
 ```
 Koden er præcis ligesom den fra det andet replikationspaper, fordi vi får i hvert fald præcis de samme tal som han gør i det paper
+
+
+```{r}
+bi_df <- data.frame(
+  club = names(b_i),
+  b_i = as.numeric(b_i)
+)
+
+club_avg_position <- covid_pdata %>%
+  group_by(club) %>%
+  summarise(avg_position = mean(placering, na.rm = TRUE))
+
+merged <- merge(bi_df, club_avg_position, by = "club")
+
+cor(merged$b_i, merged$avg_position)
+
+```
 

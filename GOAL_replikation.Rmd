@@ -394,6 +394,12 @@ revenue <- plm(
 )
 summary(revenue)
 
+#ols version (kun for at tjekke)
+revenue_ols <- lm(
+  log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere + factor(club),
+  data = covid_pdata
+)
+
 #Heteroskedasticity - H0: homoskedasticity
 bptest(revenue) #afvises
 
@@ -440,12 +446,38 @@ summary(perform_dummy)
 
 #opdeling af dummy
 perform_dummy2 <- plm(
-  log_rank ~ log_wage + I(log_wage^2) + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg,
+  log_rank ~ log_wage + log_goals + log_gapg,
   data = covid_pdata,
   model = "within"
 )
 summary(perform_dummy2)
 
+#Ols-version
+perform_ols <- lm(
+  log_rank ~ log_wage + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg + factor(club),
+  data = covid_pdata
+)
+
+
+#Heteroskedasticity - H0: homoskedasticity
+bptest(perform_dummy2) #afvises
+
+#Wooldridge test for serial corelation - H0: ingen serial correlation 
+pbgtest(perform_dummy2) #afvises
+pwartest(perform_dummy2) # afvises
+
+#Peseran test for cross sectional depedence - H0: ingen
+pcdtest(perform_dummy2, test = "cd") #kan ikke afvises
+
+#Multicollinearity - over 10 = så stopper du
+vif(lm(
+  log_rank ~ log_wage + log_goals + log_gapg,
+  data = covid_pdata
+  )) # så fint
+```
+
+
+```{r}
 ## positioner
 # Fælles konstanter
 X <- 45            # Antal positioner

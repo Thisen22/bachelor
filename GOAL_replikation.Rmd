@@ -107,7 +107,7 @@ covid_valid_clubs <- covid_df %>%
 covid_data_filtered <- covid_df %>%
   filter(club %in% covid_valid_clubs)
 
-covid_pdata <- pdata.frame(covid_df, index =c("club", "season_numeric")) #hele datasæt - covid
+covid_pdata <- pdata.frame(covid_df, index =c("club", "season_numeric")) #hele datasæt - covid og MK Dons og Scunthorpe
 pdata_filt<- pdata.frame(covid_data_filtered, index =c("club", "season_numeric")) #datasæt hvor klubber med færre deltagelse er sorteret fra
 ```
 
@@ -700,8 +700,9 @@ mean(positioner_uden_tilskuere_clean$afvig_win)
 ```
 
 
-### uden log_wage^2
+### DE VALGTE - uden log_wage^2 
 ```{r}
+#regressionsestimater for revenue-funktionen
 revenue_uden_log_wage2 <- plm(
   log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
   data = covid_pdata,
@@ -709,12 +710,19 @@ revenue_uden_log_wage2 <- plm(
 )
 summary(revenue_uden_log_wage2)
 
+#robuste standardfejl
+coeftest(revenue_uden_log_wage2, vcov = vcovHC(revenue_uden_log_wage2, type = "HC1", cluster = "group"))
+
+#regressionsestimater for performance-funktionen
 perform_uden_log_wage2 <- plm(
   log_rank ~ log_wage + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg,
   data = covid_pdata,
   model = "within"
 )
 summary(perform_uden_log_wage2)
+
+#robuste standardfejl
+coeftest(perform_uden_log_wage2, vcov = vcovHC(perform_uden_log_wage2, type = "HC1", cluster = "group"))
 
 #tabel
 X <- 45            # Antal positioner
@@ -764,7 +772,117 @@ klubber_fjern_alle <- c(
 positioner_uden_wage2_clean <- positioner_uden_wage2[!rownames(positioner_uden_wage2) %in% klubber_fjern_alle, ]
 mean(positioner_uden_wage2_clean$afvig_profit)
 mean(positioner_uden_wage2_clean$afvig_win)
+
+#fjerner klubber der har været med i under 8 sæsoner
+klubber_fjern8 <- c(
+  "Blackpool", "Bolton", "Burton", "Charlton", "Coventry", "Doncaster", 
+  "Luton", "MK Dons", "Peterborough", "Rotherham", 
+  "Scunthorpe", "Sheffield United"
+)
+
+# Fjern klubberne baseret på rownames
+ny_positioner8 <- positioner_uden_wage2[!rownames(positioner_uden_wage2) %in% klubber_fjern8, ]
+mean(ny_positioner8$afvig_profit)
+mean(ny_positioner8$afvig_win)
+
+#fjerner klubber der har været med i under 3 sæsoner
+klubber_fjern3 <- c(
+  "Burton", 
+  "MK Dons", 
+  "Scunthorpe"
+)
+
+# Fjern klubberne baseret på rownames
+ny_positioner3 <- positioner_uden_wage2[!rownames(positioner_uden_wage2) %in% klubber_fjern3, ]
+mean(ny_positioner3$afvig_profit)
+mean(ny_positioner3$afvig_win)
 ```
+
+#### specifikationstest
+```{r}
+#revenue_uden_log_wage2
+
+revenue_uden_log_wage2_random <- plm(
+  log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
+  data = covid_pdata,
+  model = "random"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+revenue_uden_log_wage2_pooling <- plm(
+  log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
+  data = covid_pdata,
+  model = "pooling"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+
+#FE eller OLS?
+pFtest(revenue_uden_log_wage2, revenue_uden_log_wage2_pooling)  #signifikant = FE
+
+#FE eller RE?
+hausman_test_revenue <- phtest(revenue_uden_log_wage2, revenue_uden_log_wage2_random)
+print(hausman_test_revenue) #signifikant = FE
+```
+
+
+```{r}
+#perform_uden_log_wage2
+
+perform_uden_log_wage2_random <- plm(
+  log_rank ~ log_wage + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg,
+  data = covid_pdata,
+  model = "random"
+)
+
+perform_uden_log_wage2_pooling <- plm(
+  log_rank ~ log_wage + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg,
+  data = covid_pdata,
+  model = "pooling"
+)
+
+
+# FE eller OLS?
+pFtest(perform_uden_log_wage2, perform_uden_log_wage2_pooling) #signifikant = FE
+
+#FE eller RE?
+hausman_test_perform <- phtest(perform_uden_log_wage2, perform_uden_log_wage2_random)
+print(hausman_test_perform) #signifikant = FE
+```
+
+### Diagnostic
+```{r}
+#Heteroskedasticity - H0: homoskedasticity
+bptest(revenue_uden_log_wage2) #afvises
+
+#Wooldridge test for serial corelation - H0: ingen serial correlation 
+pbgtest(revenue_uden_log_wage2) #afvises
+
+#Peseran test for cross sectional depedence - H0: ingen
+pcdtest(revenue_uden_log_wage2, test = "cd") #kan ikke afvises
+
+#Multicollinearity - over 10 = så stopper du
+vif(lm(
+  log_revenue ~ log_rank + lag(log_revenue, 1) + log_tilskuere,
+  data = covid_pdata
+  )) # så fint
+```
+
+```{r}
+#Heteroskedasticity - H0: homoskedasticity
+bptest(perform_uden_log_wage2) #afvises
+
+#Wooldridge test for serial corelation - H0: ingen serial correlation 
+pbgtest(perform_uden_log_wage2) #kan ikke afvises
+
+#Peseran test for cross sectional depedence - H0: ingen
+pcdtest(perform_uden_log_wage2, test = "cd") #kan ikke afvises
+
+#Multicollinearity - over 10 = så stopper du
+vif(lm(
+  log_rank ~ log_wage + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg,
+  data = covid_pdata
+  )) # så fint
+
+```
+
 
 ### uden begge
 ```{r}

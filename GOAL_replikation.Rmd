@@ -376,7 +376,7 @@ mean(positioner$afvig_win_d)
 
 ```
 
-## nyt forsøg med ALLE klubber i regression
+## ALLE klubber i regression
 ```{r}
 #replikation af GOAL!
 goal_revenue <- plm(
@@ -446,7 +446,7 @@ summary(perform_dummy)
 
 #opdeling af dummy
 perform_dummy2 <- plm(
-  log_rank ~ log_wage + log_goals + log_gapg,
+  log_rank ~ log_wage + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg,
   data = covid_pdata,
   model = "within"
 )
@@ -555,7 +555,7 @@ mean(positioner3$afvig_win)
 
 
 
-##forsøg på at replikere win vs profit positioner i paper
+## replikation af win vs profit positioner i paper
 ```{r}
 df1 <- data.frame(
   Team = c("Manchester City", "Fulham", "Wimbledon", "Sheffield Wednesday", "Preston North End",
@@ -624,4 +624,76 @@ merged <- merge(bi_df, club_avg_position, by = "club")
 cor(merged$b_i, merged$avg_position)
 
 ```
+
+## alternative tabeller
+
+### uden log_tilskuere
+```{r}
+revenue_uden <- plm(
+  log_revenue ~ log_rank + lag(log_revenue, 1),
+  data = covid_pdata,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+summary(goal_revenue)
+
+perform_dummy2 <- plm(
+  log_rank ~ log_wage + I(log_wage^2) + I(log_wage*Promoted) + I(log_wage*Relegated) + log_goals + log_gapg,
+  data = covid_pdata,
+  model = "within"
+)
+summary(perform_dummy2)
+
+#tabel
+X <- 45            # Antal positioner
+a <- 0       
+alpha <- 0  
+c <- summary(perform_dummy2)$coefficients["log_wage", "Estimate"]      # estimat fra perform regression på log_wage
+gamma <- summary(revenue_uden)$coefficients["log_rank", "Estimate"]       # estimat fra revenue regression på log_rank
+Rt_bar <- mean(covid_pdata$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
+Wt_bar <- mean(covid_pdata$wage)   # Gennemsnitlig lønudgift
+
+# klubspecifikke
+b_i <- fixef(perform_dummy2)
+beta_i <- fixef(revenue_uden)
+
+positioner_uden_tilskuere <- data.frame(b_i, beta_i)  # matcher rækkefølgen!
+
+club_avg_position <- covid_pdata%>%
+  group_by(club) %>%
+  summarise(avg_position = mean(placering, na.rm = TRUE)) %>%
+  arrange(club)
+
+club_avg_position <- club_avg_position[!(club_avg_position$club %in% c("MK Dons", "Scunthorpe")), ]
+
+
+positioner_uden_tilskuere$avg_placering <- club_avg_position$avg_position
+positioner_uden_tilskuere$win <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar)) /(c*gamma -1) ))
+positioner_uden_tilskuere$profit <- 45 / (1+exp(-(a + b_i + c * (alpha+beta_i) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
+
+positioner_uden_tilskuere <- positioner_uden_tilskuere %>%
+  #mutate(afvig_profit = profit - avg_placering) %>%
+  #mutate(afvig_win = win - avg_placering) %>%
+  mutate(afvig_win = win - avg_placering) %>%
+  mutate(afvig_profit = profit - avg_placering)
+
+mean(positioner_uden_tilskuere$afvig_profit)
+mean(positioner_uden_tilskuere$afvig_win)
+
+#fjerner alle klubber der ikke har været med i alle sæsoner
+klubber_fjern_alle <- c(
+  "Barnsley", "Blackburn", "Blackpool", "Bolton", "Bournemouth", "Brentford", 
+  "Brighton", "Bristol City", "Burton", "Charlton", "Coventry", "Derby", 
+  "Doncaster", "Huddersfield", "Ipswich", "Luton", "Milwall", "MK Dons", 
+  "Peterborough", "Preston", "Rotherham", "Scunthorpe", "Sheffield United", 
+  "Sheffield Wed", "Southampton", "Sunderland", "Wigan", "Wolves"
+)
+
+positioner_uden_tilskuere_clean <- positioner_uden_tilskuere[!rownames(positioner_uden_tilskuere) %in% klubber_fjern_alle, ]
+mean(positioner_uden_tilskuere_clean$afvig_profit)
+mean(positioner_uden_tilskuere_clean$afvig_win)
+
+```
+
+
+### uden log_wage^2
 

@@ -796,6 +796,14 @@ klubber_fjern3 <- c(
 ny_positioner3 <- positioner_uden_wage2[!rownames(positioner_uden_wage2) %in% klubber_fjern3, ]
 mean(ny_positioner3$afvig_profit)
 mean(ny_positioner3$afvig_win)
+
+#manuel udregning for City eksempel
+b_city <- 0.250472
+beta_city <- -0.506511
+
+45 / (1+exp(-(a + b_city + c * (alpha+beta_city) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
+
+45 / (1+exp(-(a + b_city + c * (alpha+beta_city) + c * log(Rt_bar) - c * log(Wt_bar)) / (c*gamma -1) ))
 ```
 
 #### specifikationstest

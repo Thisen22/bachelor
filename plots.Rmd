@@ -17,6 +17,7 @@ library(dplyr)
 library(scales)
 library(forcats)
 data <- read_excel("data.xlsx", range = "A1:G261", na = "N/A")
+data2 <- read_excel("data.xlsx",sheet = "Ark1", range = "A1:H313")
 
 
 season22_23 <-data %>%
@@ -24,20 +25,10 @@ season22_23 <-data %>%
   na.omit() %>%
   select(season, club, revenue, wage)
 
-andre_klubber <- data_frame(season = c("22_23", "22_23", "22_23", "22_23", "22_23"), club = c("Brighton", "Brentford", "Bournemouth", "Nottingham Forest", "Leeds"), revenue = c(203574, 166508, 140983, 154758, 189684), wage = c(109446, 86152, 87832, 129718, 129398))
-
-season22_23 <- rbind(season22_23, andre_klubber)
-
-ggplot(season22_23, aes(x = club, y = revenue)) + 
-  geom_bar(stat = "identity") + 
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(title = "Premier League klubbers omsætning og løn i 2022/2023",
-       y = "£1.000")
 
 ggplot(season22_23) +
-  geom_bar(aes(x = fct_reorder(club, revenue, .desc = TRUE), y = revenue, fill = "Omsætning"), stat = "identity", width = 0.3) +
-  geom_bar(aes(x = club, y = wage, fill = "Løn"), stat = "identity", width = 0.3) +
+  geom_bar(aes(x = fct_reorder(club, revenue, .desc = TRUE), y = revenue, fill = "Omsætning"), stat = "identity", width = 0.35) +
+  geom_bar(aes(x = club, y = wage, fill = "Løn"), stat = "identity", width = 0.35) +
   geom_text(aes(x = club, y = revenue, label = scales::comma(revenue/1000, accuracy = 1), group = "revenue"), 
             position = position_dodge(width = 0.8), vjust = -0.5, hjust = -0.1, size = 2) +  # Værdi for Revenue
   geom_text(aes(x = club, y = wage, label = scales::comma(wage/1000, accuracy = 1), group = "wage"),
@@ -45,7 +36,7 @@ ggplot(season22_23) +
   labs(title = "Premier League klubbers omsætning og løn i 2022/2023",
        y = "£1.000", 
        x = "",
-       caption = "Kilde: Annual Reports") +
+       caption = "Kilde: Egne beregninger baseret på Annual Reports") +
   scale_fill_manual(values = c("Omsætning" = "#211A52", "Løn" = "#007fa3"), name = "") +
   scale_y_continuous(labels = comma) +
   theme_minimal() + 
@@ -55,6 +46,55 @@ ggplot(season22_23) +
         legend.text = element_text(size = 8))
 
 ```
+
+## Championship klubbers løn og omsætning 2022/2023
+```{r}
+library(ggplot2)
+library(dplyr)
+library(forcats)
+library(scales)
+
+# Tilføj hjælpekolonner
+plot_data <- championship22_23 %>%
+  mutate(club = fct_reorder(club, revenue, .desc = TRUE)) %>%
+  rowwise() %>%
+  mutate(
+    back_var = ifelse(revenue >= wage, revenue, wage),
+    front_var = ifelse(revenue < wage, revenue, wage),
+    back_fill = ifelse(revenue >= wage, "Omsætning", "Løn"),
+    front_fill = ifelse(revenue < wage, "Omsætning", "Løn"),
+    back_label = ifelse(revenue >= wage, revenue, wage),
+    front_label = ifelse(revenue < wage, revenue, wage)
+  ) %>%
+  ungroup()
+
+# Plot
+ggplot(plot_data) +
+  # Først: bageste søjle (største)
+  geom_bar(aes(x = club, y = back_var, fill = back_fill), stat = "identity", width = 0.35) +
+  # Så: forreste søjle (mindste)
+  geom_bar(aes(x = club, y = front_var, fill = front_fill), stat = "identity", width = 0.35) +
+  # Tekster
+  geom_text(aes(x = club, y = revenue, label = comma(revenue / 1000, accuracy = 1)), 
+            vjust = 0, hjust = -0.7, size = 2) +
+  geom_text(aes(x = club, y = wage, label = comma(wage / 1000, accuracy = 1)), 
+            vjust = 1.7, hjust = 0.46, size = 2, color = "white") +
+  # Farver og labels
+  scale_fill_manual(values = c("Omsætning" = "#211A52", "Løn" = "#007fa3"), name = "") +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Championship klubbers omsætning og løn i 2022/2023",
+       y = "£1.000", 
+       x = "",
+       caption = "Kilde: Egne beregninger baseret på Annual Reports") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = c(0.9, 0.85),
+        legend.key.size = unit(0.4, "cm"),
+        legend.text = element_text(size = 8))
+
+```
+
+
 
 ## Premier League samlede revenue og wage udvikling
 ```{r}
@@ -91,6 +131,61 @@ ggplot(pl, aes(x = year)) +
         legend.text = element_text(size = 8), 
         axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+
+
+## Championship samlede revenue og wage udvikling
+```{r}
+library(dplyr)
+
+efl_agg <- efl_agg %>%
+  mutate(year = as.numeric(paste0("20", substr(season, 4, 5))))  # "10_11" → 2011
+
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+efl_agg <- efl_agg %>%
+  mutate(year = as.numeric(paste0("20", substr(season, 4, 5))))
+
+efl_agg <- efl_agg %>%
+  mutate(
+    total_revenue = total_revenue / 1000,
+    total_wage = total_wage / 1000
+  )
+
+
+# Plot
+ggplot(efl_agg) +
+  geom_line(aes(x = year, y = total_revenue, color = "Omsætning"), linewidth = 1) +
+  geom_line(aes(x = year, y = total_wage, color = "Løn"), linewidth = 1) +
+  geom_text(data = efl_agg, aes(x = year, y = total_revenue, label = scales::comma(total_revenue)), 
+            vjust = ifelse(efl_agg$year <= 2019, -1.4, 1.3),
+            hjust = ifelse(efl_agg$year <= 2019, 1, 1.3),
+            size = 2,
+            color = "#211A52") +
+  geom_text(data = efl_agg, aes(x = year, y = total_wage, label = scales::comma(total_wage)), 
+            vjust = ifelse(efl_agg$year <= 2018, 1.7, 2.3),
+            hjust = ifelse(efl_agg$year <= 2018, 0, 0.5),
+            size = 2,
+            color = "#007fa3") +
+  labs(title = "Udvikling i Championships omsætning og løn 2010/11 - 2022/23", x = "", y = "£m", caption = "Kilde: Egne beregninger baseret på Annual Reports") +
+  scale_color_manual(values = c("Omsætning" = "#211A52", "Løn" = "#007fa3"),  
+                     name = "") +
+  scale_x_continuous(
+  breaks = c(2011:2023),
+  labels = c("10/11", "11/12", "12/13", "13/14", "14/15", "15/16", 
+             "16/17", "17/18", "18/19", "19/20", "20/21", "21/22", "22/23")
+) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal() +
+  theme(legend.position = c(0.15,0.85),
+        legend.key.size = unit(0.4, "cm"),
+        legend.text = element_text(size = 8), 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
 
 ```{r}
 library(ggplot2)

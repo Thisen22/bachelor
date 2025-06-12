@@ -18,7 +18,7 @@ library(plm)
 library(lmtest)
 library(urca)
 library(car)
-data <- read_excel("data.xlsx", sheet = "Sheet1", range = "A1:I261")
+data <- read_excel("data.xlsx", sheet = "Sheet1", range = "A1:J261")
 data2 <- read_excel("data.xlsx",sheet = "Ark1", range = "A1:I313")
 
 #dataa <- read_excel("data2.xlsx", sheet = "Sheet1", range = "G1:G261") #målforskel
@@ -957,4 +957,102 @@ positioner_uden_begge_clean <- positioner_uden_begge[!rownames(positioner_uden_b
 mean(positioner_uden_begge_clean$afvig_profit)
 mean(positioner_uden_begge_clean$afvig_win)
 ```
+
+## Eksamensoplæg
+### GOAL's metode til placeringer
+```{r}
+goal_perf <- plm(
+  log_rank ~ log_wage + lag(log_rank, 1), 
+  data = covid_pdata,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+summary(goal_perf)
+
+goal_rev <- plm(
+  log_revenue ~ log_rank + lag(log_revenue, 1),
+  data = covid_pdata,
+  model = "within"  # eller "pooling", "random", etc. afhængigt af hvad du laver
+)
+summary(goal_rev)
+
+
+#tabel
+X <- 45            # Antal positioner
+a <- 0       
+alpha <- 0  
+c <- summary(goal_perf)$coefficients["log_wage", "Estimate"]      # estimat fra perform regression på log_wage
+gamma <- summary(goal_rev)$coefficients["log_rank", "Estimate"]       # estimat fra revenue regression på log_rank
+Rt_bar <- mean(covid_pdata$revenue)   # Gennemsnitlig omsætning for alle klubber over hele perioden
+Wt_bar <- mean(covid_pdata$wage)   # Gennemsnitlig lønudgift
+
+# klubspecifikke
+b_i2 <- fixef(goal_perf)
+beta_i2 <- fixef(goal_rev)
+
+placeringer <- data.frame(b_i2, beta_i2)  # matcher rækkefølgen!
+
+club_avg_position <- covid_pdata%>%
+  group_by(club) %>%
+  summarise(avg_position = mean(placering, na.rm = TRUE)) %>%
+  arrange(club)
+
+club_avg_position <- club_avg_position[!(club_avg_position$club %in% c("MK Dons", "Scunthorpe")), ]
+
+
+placeringer$avg_placering <- club_avg_position$avg_position
+placeringer$win <- 45 / (1+exp(-(a + b_i2 + c * (alpha+beta_i2) + c * log(Rt_bar) - c * log(Wt_bar)) /(c*gamma -1) ))
+placeringer$profit <- 45 / (1+exp(-(a + b_i2 + c * (alpha+beta_i2) + c * log(Rt_bar) - c * log(Wt_bar) + c * log(c*gamma) ) / (c*gamma -1) ))
+
+placeringer <- placeringer %>%
+  #mutate(afvig_profit = profit - avg_placering) %>%
+  #mutate(afvig_win = win - avg_placering) %>%
+  mutate(afvig_win = win - avg_placering) %>%
+  mutate(afvig_profit = profit - avg_placering)
+
+mean(placeringer$afvig_profit)
+mean(placeringer$afvig_win)
+
+#fjerner alle klubber der ikke har været med i alle sæsoner
+klubber_fjern_alle <- c(
+  "Barnsley", "Blackburn", "Blackpool", "Bolton", "Bournemouth", "Brentford", 
+  "Brighton", "Bristol City", "Burton", "Charlton", "Coventry", "Derby", 
+  "Doncaster", "Huddersfield", "Ipswich", "Luton", "Milwall", "MK Dons", 
+  "Peterborough", "Preston", "Rotherham", "Scunthorpe", "Sheffield United", 
+  "Sheffield Wed", "Southampton", "Sunderland", "Wigan", "Wolves"
+)
+
+placering_clean <- placeringer[!rownames(placeringer) %in% klubber_fjern_alle, ]
+mean(placering_clean$afvig_profit)
+mean(placering_clean$afvig_win)
+
+```
+
+### Regression løn/point vs value/point
+#### Løn/point
+```{r}
+# Filtrér kun Championship
+championship <- subset(data2)
+
+# Udfør Pearson korrelation
+cor.test(championship$wage, championship$points, method = "pearson") #generel korrelation i EFL 0,488
+
+#Premier League-klubber
+pl <- subset(data)
+
+cor.test(pl$wage, pl$points, method = "pearson") #0,67
+
+# har lavet en korrelationstest på alle sæsoner i PL og i alle er den > 0,8, udover 15-16 (Leicester vandt) og 22-23 (Chelsea skuffede og Brentford og Brighton overpræsterede), hvor den er en del lavere
+```
+
+#### value/point
+```{r}
+pl_10 <- subset(data, season == "10_11")
+
+cor.test(pl_10$squad_value, pl_10$points) #0,92
+
+cor.test(pl_10$wage, pl_10$points) #0,87
+
+#sæson 10/11 korrelation squad > wage
+```
+
 

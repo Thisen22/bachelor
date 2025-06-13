@@ -19,7 +19,7 @@ library(lmtest)
 library(urca)
 library(car)
 data <- read_excel("data.xlsx", sheet = "Sheet1", range = "A1:J261")
-data2 <- read_excel("data.xlsx",sheet = "Ark1", range = "A1:I313")
+data2 <- read_excel("data.xlsx",sheet = "Ark1", range = "A1:J313")
 
 #dataa <- read_excel("data2.xlsx", sheet = "Sheet1", range = "G1:G261") #målforskel
 #dataa2 <- read_excel("data2.xlsx", sheet = "Ark1", range = "G1:G313") #målforskel
@@ -1046,6 +1046,14 @@ cor.test(pl$wage, pl$points, method = "pearson") #0,67
 
 #### value/point
 ```{r}
+#for hele perioden i PL
+pl_value <- subset(data)
+
+cor.test(pl_value$squad_value, pl_value$points) #0,72
+
+#større korrelation end for wage
+
+
 pl_10 <- subset(data, season == "10_11")
 
 cor.test(pl_10$squad_value, pl_10$points) #0,92
@@ -1053,6 +1061,22 @@ cor.test(pl_10$squad_value, pl_10$points) #0,92
 cor.test(pl_10$wage, pl_10$points) #0,87
 
 #sæson 10/11 korrelation squad > wage
+
+pl_21 <- subset(data, season == "21_22")
+
+cor.test(pl_21$squad_value, pl_21$points) #0,90
+
+cor.test(pl_21$wage, pl_21$points) #0,82
+
+# squad > wage
+
+pl_22 <- subset(data, season == "22_23")
+
+cor.test(pl_22$squad_value, pl_22$points) #0,70
+
+cor.test(pl_22$wage, pl_22$points) #0,55
+
+# squad > wage
 ```
 
 
